@@ -19,45 +19,11 @@ import (
 type appHandler func(http.ResponseWriter, *http.Request) *appError
 
 type Report struct {
-	Id   string `json:"id"`
-	Type string `json:"type"`
-	Url  string `json:"url"`
-	Body struct {
-		Id                 string `json:"id"`
-		Message            string `json:"message"`
-		LineNumber         int64  `json:"lineNumber"`
-		ColumnNumber       int64  `json:"columnNumber"`
-		SourceFile         string `json:"sourceFile"`
-		AnticipatedRemoval string `json:"anticipatedRemoval"`
-	} `json:"body"`
+	Cpu   string `json:"cpu"`
+	Memory string `json:"memory"`
+	Storage  string `json:"storage"`
+    Deviceid  string `json:"deviceid"`
 }
-
-type FlattenedReport struct {
-	Id                 string
-	Type               string
-	Url                string
-	Message            string
-	LineNumber         int64
-	ColumnNumber       int64
-	SourceFile         string
-	AnticipatedRemoval string
-	ReportTime         int64
-	BId                string
-}
-
-// func ConfigureDB(ctx context.Context) (*firestore.Client, error) {
-// 	projectId := os.Getenv("PROJ_ID")
-// 	if projectId == "" {
-// 		return nil, errors.New("NO PROJECT ID DEFINED")
-// 	}
-// 	conf := &firebase.Config{ProjectID: projectId}
-// 	app, err := firebase.NewApp(ctx, conf)
-// 	if err != nil {
-// 		return nil, errors.New("SOMETHING HAPPENED WEIRD HERE")
-// 	}
-// 	client, erro := app.Firestore(ctx)
-// 	return client, erro
-// }
 
 func ConfigureDB(ctx context.Context) (*bigquery.Client, error) {
 	projectId := os.Getenv("PROJ_ID")
@@ -75,18 +41,6 @@ func AddReport(r Report, client *bigquery.Client, ctx context.Context) error {
 		return errors.New("DATASET_ID or TABLE_ID is not defined")
 	}
 	u := client.Dataset(datasetId).Table(tableId).Uploader()
-	fr := FlattenedReport{
-		Id:                 r.Id,
-		Type:               r.Type,
-		Url:                r.Url,
-		Message:            r.Body.Message,
-		LineNumber:         r.Body.LineNumber,
-		ColumnNumber:       r.Body.ColumnNumber,
-		SourceFile:         r.Body.SourceFile,
-		AnticipatedRemoval: r.Body.AnticipatedRemoval,
-		ReportTime:         time.Now().Unix(),
-		BId:                r.Body.Id,
-	}
 
 	err := u.Put(ctx, fr)
 	if err != nil {
@@ -105,12 +59,9 @@ func AddReport(r Report, client *bigquery.Client, ctx context.Context) error {
 	return nil
 }
 
-// func AddReport(r Report, client *firestore.Client, ctx context.Context) error {
-// 	_, _, err := client.Collection("reports").Add(ctx, r)
-// 	return err
-// }
-
-func ReportObserverStorer(w http.ResponseWriter, r *http.Request) *appError {
+// This is doing streaming inserts which is a cost of 0.010 USD / 200 MBs for US mult-region
+// See : https://cloud.google.com/bigquery/pricing for more details
+func JsonToBigQueryStorer(w http.ResponseWriter, r *http.Request) *appError {
 	ctx := context.Background()
 	client, err := ConfigureDB(ctx)
 	if err != nil {
@@ -163,7 +114,7 @@ func registerHandlers() {
 	r := mux.NewRouter()
 
 	r.Methods("POST").Path("/report").
-		Handler(appHandler(ReportObserverStorer))
+		Handler(appHandler(JsonToBigQueryStorer))
 	http.Handle("/", handlers.CombinedLoggingHandler(os.Stderr, r))
 }
 
