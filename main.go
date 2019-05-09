@@ -8,7 +8,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"time"
 
 	"cloud.google.com/go/bigquery"
 	"github.com/gorilla/handlers"
@@ -19,10 +18,10 @@ import (
 type appHandler func(http.ResponseWriter, *http.Request) *appError
 
 type Report struct {
-	Cpu   string `json:"cpu"`
-	Memory string `json:"memory"`
-	Storage  string `json:"storage"`
-    Deviceid  string `json:"deviceid"`
+	Cpu   string `json:"cpu"` // will need to add more parameters here for full cpu info
+	Memory string `json:"memory"` // will need to add more parameters here for full memory info
+	Storage  string `json:"storage"` // will need to add more parameters here for full storage info
+    Deviceid  string `json:"deviceid"` // string
 }
 
 func ConfigureDB(ctx context.Context) (*bigquery.Client, error) {
@@ -42,7 +41,7 @@ func AddReport(r Report, client *bigquery.Client, ctx context.Context) error {
 	}
 	u := client.Dataset(datasetId).Table(tableId).Uploader()
 
-	err := u.Put(ctx, fr)
+	err := u.Put(ctx, r)
 	if err != nil {
 		if multiError, ok := err.(bigquery.PutMultiError); ok {
 			for _, err1 := range multiError {
