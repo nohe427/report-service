@@ -2,7 +2,7 @@
 ## Building the container
 From within your gcloud environment, run the following terminal command inside the project folder:
 
-`gcloud builds submit --tag gcr.io/rockgymbuddy/report-service .`
+`gcloud builds submit --tag gcr.io/${PROJECT_ID}/report-service .`
 
 Information on Cloud Build Pricing : https://cloud.google.com/cloud-build/Pricing
 
